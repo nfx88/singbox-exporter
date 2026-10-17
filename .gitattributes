@@ -8,10 +8,10 @@
 *.sh text eol=lf
 
 # Markdown/YAML/JSON
-*.md text
-*.yml text
-*.yaml text
-*.json text
+*.md text eol=lf
+*.yml text eol=lf
+*.yaml text eol=lf
+*.json text eol=lf
 
 # Binary (none expected, just being explicit)
 *.bin binary

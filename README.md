@@ -3,7 +3,7 @@
 ![License: MIT](https://img.shields.io/badge/license-MIT-yellow.svg)
 ![Go](https://img.shields.io/badge/Go-1.27+-00ADD8?logo=go&logoColor=white)
 ![Dependencies](https://img.shields.io/badge/dependencies-0-green)
-![GitHub release](https://img.shields.io/github/v/release/nfx88/singbox-exporter)
+![GitHub tag](https://img.shields.io/github/v/tag/nfx88/singbox-exporter)
 
 > **🇷🇺 Русский** · [🇬🇧 English](README.en.md)
 
