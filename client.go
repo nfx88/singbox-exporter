@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -31,7 +32,7 @@ const (
 	errorBackoffCap  = 30 * time.Minute
 )
 
-func newExporter(o options, lg *logger) *exporter {
+func newExporter(o *options, lg *logger) *exporter {
 	return &exporter{
 		apiBase:  o.apiBase,
 		apiToken: o.apiToken,
@@ -43,8 +44,8 @@ func newExporter(o options, lg *logger) *exporter {
 	}
 }
 
-func (e *exporter) getJSON(path string, output any) error {
-	req, err := http.NewRequest(http.MethodGet, e.apiBase+path, nil)
+func (e *exporter) getJSON(ctx context.Context, path string, output any) error {
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, e.apiBase+path, nil)
 	if err != nil {
 		return err
 	}

@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"net/http/httptest"
 	"strings"
@@ -170,8 +171,8 @@ func TestLoggerReceivesPollFailures(t *testing.T) {
 	defer srv.Close()
 
 	var buf bytes.Buffer
-	e := newExporter(options{apiBase: srv.URL, interval: time.Minute}, newLogger(&buf, levelError, formatText))
-	e.collect()
+	e := newExporter(&options{apiBase: srv.URL, interval: time.Minute}, newLogger(&buf, levelError, formatText))
+	e.collect(context.Background())
 
 	text := buf.String()
 	for _, endpoint := range []string{"version", "connections", "proxies"} {

@@ -5,6 +5,8 @@ services:
     container_name: singbox-exporter
     restart: always
     network_mode: host
+    user: "65534:65534"           # nobody:nogroup — non-root, не выше прав из Dockerfile
+    read_only: true               # бинарник ничего не пишет в диск
     command: ["-port", "9098", "-api", "http://127.0.0.1:9097"]
     healthcheck:
       test: ["CMD", "wget", "-q", "-O", "-", "http://127.0.0.1:9098/healthz"]

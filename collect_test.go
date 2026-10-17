@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"io"
 	"net/http"
@@ -83,7 +84,7 @@ func newExporterWithFake(t *testing.T, f *fakeAPI) (*exporter, *httptest.Server)
 	srv := httptest.NewServer(f.handler())
 	t.Cleanup(srv.Close)
 	lg := newLogger(io.Discard, levelError, formatText)
-	e := newExporter(options{apiBase: srv.URL, interval: time.Minute}, lg)
+	e := newExporter(&options{apiBase: srv.URL, interval: time.Minute}, lg)
 	return e, srv
 }
 
@@ -95,7 +96,7 @@ func render(e *exporter) string {
 
 func TestCollectFull(t *testing.T) {
 	e, _ := newExporterWithFake(t, newFakeAPI())
-	e.collect()
+	e.collect(context.Background())
 	text := render(e)
 
 	for _, want := range []string{
@@ -159,9 +160,9 @@ func TestCollectFull(t *testing.T) {
 func TestCollectKeepsSectionOnFailure(t *testing.T) {
 	f := newFakeAPI()
 	e, _ := newExporterWithFake(t, f)
-	e.collect()
+	e.collect(context.Background())
 	f.proxiesFail.Store(true)
-	e.collect()
+	e.collect(context.Background())
 	text := render(e)
 
 	for _, want := range []string{
@@ -186,7 +187,7 @@ func TestCollectAllEndpointsDown(t *testing.T) {
 	f.connectionsFail.Store(true)
 	f.proxiesFail.Store(true)
 	e, _ := newExporterWithFake(t, f)
-	e.collect()
+	e.collect(context.Background())
 	text := render(e)
 
 	for _, want := range []string{
@@ -215,7 +216,7 @@ func TestHealthz(t *testing.T) {
 		t.Errorf("before first poll healthz code = %d, want 503", rec.Code)
 	}
 
-	e.collect()
+	e.collect(context.Background())
 	rec = httptest.NewRecorder()
 	e.healthzHandler(rec, nil)
 	if rec.Code != http.StatusOK || rec.Body.String() != "ok\n" {
@@ -225,7 +226,7 @@ func TestHealthz(t *testing.T) {
 	f.versionFail.Store(true)
 	f.connectionsFail.Store(true)
 	f.proxiesFail.Store(true)
-	e.collect()
+	e.collect(context.Background())
 	rec = httptest.NewRecorder()
 	e.healthzHandler(rec, nil)
 	if rec.Code != http.StatusServiceUnavailable {
@@ -243,9 +244,9 @@ func TestCollectMemoryZeroStillEmitted(t *testing.T) {
 		})
 	}))
 	t.Cleanup(srv.Close)
-	e := newExporter(options{apiBase: srv.URL, interval: time.Minute},
+	e := newExporter(&options{apiBase: srv.URL, interval: time.Minute},
 		newLogger(io.Discard, levelError, formatText))
-	e.collect()
+	e.collect(context.Background())
 	if text := render(e); !strings.Contains(text, "singbox_memory_bytes 0") {
 		t.Errorf("Memory==0 must emit singbox_memory_bytes 0\n---\n%s", text)
 	}
@@ -253,7 +254,7 @@ func TestCollectMemoryZeroStillEmitted(t *testing.T) {
 
 func TestHTTPMethods(t *testing.T) {
 	e, _ := newExporterWithFake(t, newFakeAPI())
-	e.collect()
+	e.collect(context.Background())
 	h := newHTTPHandler(e)
 
 	rec := httptest.NewRecorder()

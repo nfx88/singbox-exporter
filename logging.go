@@ -68,8 +68,8 @@ func parseLogFormat(s string) (logFormat, error) {
 	}
 }
 
-// logger writes leveled, optionally structured log lines to a single writer.
-// It is a tiny stdlib-only logger (no external logging libraries).
+// logger writes level-filtered, optionally structured log lines to a single
+// writer. It is a tiny stdlib-only logger (no external logging libraries).
 type logger struct {
 	mu     sync.Mutex
 	out    io.Writer
@@ -116,7 +116,7 @@ func (l *logger) writeJSON(lv logLevel, msg string, kv ...any) {
 	writeKeyValuesMap(entry, kv)
 	data, err := json.Marshal(entry)
 	if err != nil {
-		fmt.Fprintf(l.out, `{"ts":%q,"level":"error","msg":"failed to encode log entry: %v"}`+"\n",
+		_, _ = fmt.Fprintf(l.out, `{"ts":%q,"level":"error","msg":"failed to encode log entry: %v"}`+"\n",
 			time.Now().Format(time.RFC3339Nano), err)
 		return
 	}
@@ -128,10 +128,10 @@ func (l *logger) writeJSON(lv logLevel, msg string, kv ...any) {
 // output. An odd number of pairs gets a "?" value placeholder.
 func writeKeyValues(b *strings.Builder, kv []any) {
 	for i := 0; i+1 < len(kv); i += 2 {
-		fmt.Fprintf(b, " %v=%q", kv[i], fmt.Sprint(kv[i+1]))
+		_, _ = fmt.Fprintf(b, " %v=%q", kv[i], fmt.Sprint(kv[i+1]))
 	}
 	if len(kv)%2 == 1 {
-		fmt.Fprintf(b, " %v=%q", kv[len(kv)-1], "?")
+		_, _ = fmt.Fprintf(b, " %v=%q", kv[len(kv)-1], "?")
 	}
 }
 

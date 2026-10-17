@@ -270,4 +270,7 @@ release:
 
 ## License
 
-[MIT](LICENSE)
+This project is distributed under the [MIT license](LICENSE).
+The software is provided **"as is" (AS IS)**, without warranty of any kind, express or
+implied, including but not limited to the implied warranties of merchantability and fitness
+for a particular purpose. All responsibility for its use rests with the user.

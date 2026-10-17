@@ -1,21 +1,12 @@
-# Options: golangci-lint run
-# Cache/format inspection: golangci-lint cache status
+version: "2"
 run:
-  timeout: 3m
   tests: true
-
-issues:
-  exclude-use-default: true
-
 linters:
-  disable-all: true
+  default: none
   enable:
     - asasalint
     - errcheck
     - gocritic
-    - gofmt
-    - goimports
-    - gosimple
     - govet
     - ineffassign
     - misspell
@@ -24,33 +15,47 @@ linters:
     - unconvert
     - unused
     - usestdlibvars
-
-linters-settings:
-  gocritic:
-    enabled-checks:
-      - appendAssign
-      - assignOp
-      - badLock
-      - boolExprSimplify
-      - commentFormatting
-      - elseif
-      - emptyFallthrough
-      - equalFold
-      - hugeParam
-      - ifElseChain
-      - importShadow
-      - methodExprCall
-      - parameterOrdering
-      - ptrToRefParam
-      - rangeExprCopy
-      - rangeValCopy
-      - sloppyLen
-      - truncateCmp
-      - typeAssertChain
-      - unlabelStmt
-      - unnamedResult
-      - unnecessaryBlock
-  gofmt:
-    simplify: true
-  misspell:
-    locale: UK
+  settings:
+    gocritic:
+      enabled-checks:
+        - badLock
+        - boolExprSimplify
+        - emptyFallthrough
+        - equalFold
+        - hugeParam
+        - importShadow
+        - methodExprCall
+        - ptrToRefParam
+        - rangeExprCopy
+        - rangeValCopy
+        - truncateCmp
+        - typeAssertChain
+        - unlabelStmt
+        - unnamedResult
+        - unnecessaryBlock
+    misspell:
+      locale: UK
+  exclusions:
+    generated: lax
+    presets:
+      - comments
+      - common-false-positives
+      - legacy
+      - std-error-handling
+    paths:
+      - third_party$
+      - builtin$
+      - examples$
+formatters:
+  enable:
+    - gofmt
+    - goimports
+  settings:
+    gofmt:
+      simplify: true
+  exclusions:
+    generated: lax
+    paths:
+      - third_party$
+      - builtin$
+      - examples$

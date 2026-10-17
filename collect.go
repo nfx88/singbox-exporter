@@ -54,7 +54,7 @@ func (e *exporter) pollLoop(ctx context.Context) {
 	ticker := time.NewTicker(e.interval)
 	defer ticker.Stop()
 	for {
-		e.collect()
+		e.collect(ctx)
 		select {
 		case <-ctx.Done():
 			return
@@ -69,14 +69,14 @@ type collectResult struct {
 	err     error
 }
 
-func (e *exporter) collect() {
+func (e *exporter) collect(ctx context.Context) {
 	start := time.Now()
 	nowSec := float64(time.Now().Unix())
 
 	results := make(chan collectResult, endpoints)
-	go e.collectVersion(results)
-	go e.collectConnections(results)
-	go e.collectProxies(results, nowSec)
+	go e.collectVersion(ctx, results)
+	go e.collectConnections(ctx, results)
+	go e.collectProxies(ctx, results, nowSec)
 
 	apiOK := false
 	endpointUp := map[string]bool{
@@ -125,9 +125,9 @@ func (e *exporter) collect() {
 	e.state.setSection("status", status)
 }
 
-func (e *exporter) collectVersion(results chan<- collectResult) {
+func (e *exporter) collectVersion(ctx context.Context, results chan<- collectResult) {
 	var ver apiVersion
-	if err := e.getJSON("/version", &ver); err != nil {
+	if err := e.getJSON(ctx, "/version", &ver); err != nil {
 		results <- collectResult{name: sectionVersion, err: err}
 		return
 	}
@@ -136,9 +136,9 @@ func (e *exporter) collectVersion(results chan<- collectResult) {
 	results <- collectResult{name: sectionVersion, samples: out}
 }
 
-func (e *exporter) collectConnections(results chan<- collectResult) {
+func (e *exporter) collectConnections(ctx context.Context, results chan<- collectResult) {
 	var conn apiConnections
-	if err := e.getJSON("/connections", &conn); err != nil {
+	if err := e.getJSON(ctx, "/connections", &conn); err != nil {
 		results <- collectResult{name: sectionConnections, err: err}
 		return
 	}
@@ -198,9 +198,9 @@ func (e *exporter) collectConnections(results chan<- collectResult) {
 	results <- collectResult{name: sectionConnections, samples: out}
 }
 
-func (e *exporter) collectProxies(results chan<- collectResult, nowSec float64) {
+func (e *exporter) collectProxies(ctx context.Context, results chan<- collectResult, nowSec float64) {
 	var proxies apiProxies
-	if err := e.getJSON("/proxies", &proxies); err != nil {
+	if err := e.getJSON(ctx, "/proxies", &proxies); err != nil {
 		results <- collectResult{name: sectionProxies, err: err}
 		return
 	}

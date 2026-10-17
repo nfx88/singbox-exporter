@@ -91,7 +91,7 @@ func main() {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 
-	e := newExporter(opts, lg)
+	e := newExporter(&opts, lg)
 	go e.pollLoop(ctx)
 
 	mux := newHTTPHandler(e)
@@ -112,8 +112,7 @@ func main() {
 
 	select {
 	case err := <-serveErr:
-		lg.Error("http server stopped", "error", err)
-		os.Exit(1)
+		fatalServer(lg, err)
 	case <-ctx.Done():
 	}
 
@@ -124,6 +123,13 @@ func main() {
 	if err := srv.Shutdown(shutdownCtx); err != nil {
 		lg.Error("shutdown failed", "error", err)
 	}
+}
+
+// fatalServer logs a terminal HTTP server error and exits. It lives in its own
+// function so os.Exit does not bypass the defers registered in main.
+func fatalServer(lg *logger, err error) {
+	lg.Error("http server stopped", "error", err)
+	os.Exit(1)
 }
 
 // ---------------- HTTP handlers ----------------

@@ -87,16 +87,16 @@ func (s *store) writeTo(w io.Writer) {
 
 	for _, name := range order {
 		m := byName[name]
-		fmt.Fprintf(w, "# HELP %s %s\n", name, m.help)
-		fmt.Fprintf(w, "# TYPE %s %s\n", name, m.typ)
+		_, _ = fmt.Fprintf(w, "# HELP %s %s\n", name, m.help)
+		_, _ = fmt.Fprintf(w, "# TYPE %s %s\n", name, m.typ)
 		sort.Slice(m.samples, func(i, j int) bool {
 			return labelString(m.samples[i].labels) < labelString(m.samples[j].labels)
 		})
 		for _, sm := range m.samples {
 			if len(sm.labels) == 0 {
-				fmt.Fprintf(w, "%s %s\n", sm.name, strconv.FormatFloat(sm.value, 'f', -1, 64))
+				_, _ = fmt.Fprintf(w, "%s %s\n", sm.name, strconv.FormatFloat(sm.value, 'f', -1, 64))
 			} else {
-				fmt.Fprintf(w, "%s{%s} %s\n", sm.name, labelString(sm.labels), strconv.FormatFloat(sm.value, 'f', -1, 64))
+				_, _ = fmt.Fprintf(w, "%s{%s} %s\n", sm.name, labelString(sm.labels), strconv.FormatFloat(sm.value, 'f', -1, 64))
 			}
 		}
 	}

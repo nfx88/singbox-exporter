@@ -12,11 +12,13 @@
 
 <!-- If adding a metric: state its name, type, labels and meaning. -->
 
+When editing, follow the contribution rules in [CONTRIBUTING.md](../CONTRIBUTING.md).
+
 ## Checklist
 
 - [ ] `gofmt -l .` is clean
 - [ ] `go vet ./...` passes
-- [ ] `go test ./...` passes (test for new behavior added where applicable)
+- [ ] `go test -race ./...` passes (test for new behavior added where applicable)
 - [ ] `README.md` / `examples/` updated for user-visible changes
 - [ ] `CHANGELOG.md` updated under *Unreleased*
 
