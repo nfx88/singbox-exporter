@@ -33,9 +33,15 @@ go vet ./...            # static analysis
 go test ./...           # run tests
 go test -race ./...     # tests with the race detector
 gofmt -l .              # list unformatted files
-golangci-lint run       # optional, config in .golangci.yml
 make                    # vet + test + build in one go
 make release            # cross-compile static binaries into dist/
+```
+
+Optional strict linter (needs golangci-lint **v2**, see `.golangci.yml`):
+
+```sh
+go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@latest
+golangci-lint run
 ```
 
 Version is injected at build time:

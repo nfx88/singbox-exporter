@@ -33,10 +33,18 @@ go vet ./...            # статический анализ
 go test ./...           # прогон тестов
 go test -race ./...     # прогон тестов с race-детектором
 gofmt -l .              # список неотформатированных файлов
-golangci-lint run       # опционально, см. .golangci.yml
 make                    # vet + test + build одним заходом
 make release            # кросс-компиляция статических бинарников в dist/
 ```
+
+Опциональный линтер (строгий локальный прогон, конфиг в `.golangci.yml`):
+
+```sh
+go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@latest
+golangci-lint run
+```
+
+Нужна именно **v2**: v1.x несовместима с тулчейном Go 1.27 (не читает export data нового формата).
 
 ## Добавление метрики
 
