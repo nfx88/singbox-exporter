@@ -1,0 +1,95 @@
+# Prometheus alerting rules for singbox-exporter.
+#
+# Copy this file into your Prometheus (or VictoriaMetrics) rules directory
+# (rule_files: - ...) and adjust thresholds / `for` durations to your setup.
+groups:
+  - name: singbox
+    rules:
+      # sing-box itself is unreachable (Clash API down or exporter misconfigured)
+      - alert: SingboxDown
+        expr: singbox_up == 0
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "sing-box Clash API is unreachable on {{ $labels.instance }}"
+          description: >-
+            The exporter could not talk to the sing-box Clash API for more
+            than 5 minutes. Check that sing-box is running with
+            experimental.clash_api.external_controller configured and that this
+            exporter can reach it (same host, -api flag).
+
+      # cloud VPN completely dead: every real proxy has no valid latency
+      - alert: SingboxAllProxiesDead
+        expr: count(singbox_proxy_down == 1) == count(singbox_proxy_down) > 0
+        for: 3m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Every sing-box proxy is dead on {{ $labels.instance }}"
+          description: >-
+            All real outbound proxies report no valid URL-test latency.
+            Try refreshing the subscription or restarting sing-box.
+
+      # half of the fleet is down — warning before it becomes critical
+      - alert: SingboxManyProxiesDead
+        expr: (sum(singbox_proxy_down == 1) / count(singbox_proxy_down)) > 0.5
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "More than half of the sing-box proxies are dead on {{ $labels.instance }}"
+          description: "{{ $value | humanizePercentage }} of proxies have no valid latency."
+
+      # selected server from an auto/url-test group switched too often
+      - alert: SingboxFlappingSelection
+        expr: changes(singbox_proxy_selected[30m]) > 3
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Proxy group {{ $labels.group }} is flapping on {{ $labels.instance }}"
+          description: >-
+            The selected proxy of group {{ $labels.group }} changed more than 3
+            times in 30 minutes. Likely a bad server or unstable network.
+
+      # exporter is alive but produces nothing new
+      - alert: SingboxMetricsStale
+        expr: (time() - singbox_scrape_timestamp_seconds) > 120
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: "singbox-exporter metrics are stale on {{ $labels.instance }}"
+          description: >-
+            Last poll finished more than 2 minutes ago while the exporter
+            process is still up. Check the exporter logs.
+
+      # inuse memory of the sing-box process (from /connections)
+      - alert: SingboxHighMemory
+        expr: singbox_memory_bytes > 512 * 1024 * 1024
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "sing-box memory is above 512 MiB on {{ $labels.instance }}"
+          description: "Current inuse memory: {{ $value | humanize1024 }}B."
+
+# ---------------------------------------------------------------------------
+# PromQL reference
+# ---------------------------------------------------------------------------
+#
+# Currently selected VPN server of every group
+#   singbox_proxy_selected
+#
+# VPN is down (all real proxies dead at once)
+#   count(singbox_proxy_down == 1) == count(singbox_proxy_down) > 0
+#
+# Download speed over the last 5 minutes
+#   sum(rate(singbox_traffic_download_bytes_total[5m]))
+#
+# Real proxies whose last measured latency was above 300 ms
+#   singbox_proxy_delay_ms > 300
+#
+# Per-endpoint health of the collection
+#   singbox_endpoint_up

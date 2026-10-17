@@ -1,0 +1,24 @@
+# Build artifacts
+singbox-exporter
+
+# Git / VCS
+.git
+.gitignore
+.github
+.gitattributes
+
+# Docs and tools that are not needed in the image
+*.md
+Makefile
+.golangci.yml
+CHANGELOG.md
+CONTRIBUTING.md
+SECURITY.md
+CODE_OF_CONDUCT.md
+docs
+examples
+
+# Scratch
+dist
+*.log
+.DS_Store

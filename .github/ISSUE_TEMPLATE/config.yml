@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: sing-box Clash API documentation
+    url: https://sing-box.sagernet.org/configuration/experimental/clash-api/
+    about: Reference for the sing-box side of the integration.
+  - name: SagerNet/sing-box issues
+    url: https://github.com/SagerNet/sing-box/issues
+    about: Report bugs in sing-box itself (non-exporter behavior) upstream.

@@ -1,0 +1,38 @@
+name: Feature request
+description: Suggest an enhancement or a new metric
+labels: [enhancement]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Ideas are welcome. Please describe the metric or behavior you want and,
+        ideally, how you would use it.
+  - type: input
+    id: metric
+    attributes:
+      label: Proposed metric (if any)
+      description: e.g. `singbox_connections_by_country`
+      placeholder: singbox_...
+    validations:
+      required: false
+  - type: textarea
+    id: rationale
+    attributes:
+      label: Motivation
+      description: What problem does this solve? Which query would you run against the new metric?
+    validations:
+      required: true
+  - type: textarea
+    id: api
+    attributes:
+      label: Required data
+      description: Is the data already available in the Clash API `/version`, `/connections`, `/proxies` payloads? Quote the relevant field.
+    validations:
+      required: false
+  - type: checkboxes
+    id: accepting
+    attributes:
+      label: Contribution
+      options:
+        - label: I am willing to implement this and open a PR
+          required: false

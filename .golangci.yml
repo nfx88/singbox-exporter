@@ -1,0 +1,56 @@
+# Options: golangci-lint run
+# Cache/format inspection: golangci-lint cache status
+run:
+  timeout: 3m
+  tests: true
+
+issues:
+  exclude-use-default: true
+
+linters:
+  disable-all: true
+  enable:
+    - asasalint
+    - errcheck
+    - gocritic
+    - gofmt
+    - goimports
+    - gosimple
+    - govet
+    - ineffassign
+    - misspell
+    - nilerr
+    - staticcheck
+    - unconvert
+    - unused
+    - usestdlibvars
+
+linters-settings:
+  gocritic:
+    enabled-checks:
+      - appendAssign
+      - assignOp
+      - badLock
+      - boolExprSimplify
+      - commentFormatting
+      - elseif
+      - emptyFallthrough
+      - equalFold
+      - hugeParam
+      - ifElseChain
+      - importShadow
+      - methodExprCall
+      - parameterOrdering
+      - ptrToRefParam
+      - rangeExprCopy
+      - rangeValCopy
+      - sloppyLen
+      - truncateCmp
+      - typeAssertChain
+      - unlabelStmt
+      - unnamedResult
+      - unnecessaryBlock
+  gofmt:
+    simplify: true
+  misspell:
+    locale: UK
