@@ -1,0 +1,16 @@
+# Build artifact (see README "Build")
+/singbox-exporter
+/dist/
+
+# Local deployment scratch files
+/deploy/
+*.log
+.ruff_cache/
+.DS_Store
+.vscode/
+.idea/
+
+# Secrets / local env files (defense in depth against accidental commits)
+.env
+.env.*
+!.env.example

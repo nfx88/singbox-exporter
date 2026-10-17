@@ -1,0 +1,17 @@
+# Normalize line endings
+* text=auto
+
+# Go sources
+*.go text eol=lf
+
+# Shell
+*.sh text eol=lf
+
+# Markdown/YAML/JSON
+*.md text
+*.yml text
+*.yaml text
+*.json text
+
+# Binary (none expected, just being explicit)
+*.bin binary

@@ -1,0 +1,59 @@
+name: Bug report
+description: Report a bug in singbox-exporter
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting. Fill in the details below — the quicker we can
+        reproduce, the quicker we can fix.
+  - type: input
+    id: version
+    attributes:
+      label: Exporter version
+      description: Output of `singbox-exporter -version`, or the commit hash.
+      placeholder: v0.1.0 / abc123
+    validations:
+      required: true
+  - type: input
+    id: singbox
+    attributes:
+      label: sing-box version
+      description: Output of `sing-box version` or the `version` label of `singbox_version_info`.
+      placeholder: 1.14.3
+    validations:
+      required: true
+  - type: dropdown
+    id: flags
+    attributes:
+      label: How is the exporter run?
+      options:
+        - Docker (network_mode: host)
+        - Native binary on the sing-box host
+        - Other
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+      description: What did you expect to happen?
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior
+      description: What happened instead? Paste relevant `/metrics` output or logs.
+    validations:
+      required: true
+  - type: textarea
+    id: repro
+    attributes:
+      label: Steps to reproduce
+      description: |
+        Commands used, PromQL query, link to a Grafana dashboard, etc.
+        If it relates to specific outbound types, include the relevant part of
+        your sing-box config (redact secrets).
+    validations:
+      required: false
