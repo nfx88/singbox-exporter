@@ -23,6 +23,7 @@ type exporter struct {
 	state          *store
 	scrapeErrors   atomic.Int64
 	lastSuccessSec float64
+	lastVersion    string
 }
 
 // errorBackoffDefaults rate-limit repeated failure logs: first failure is
@@ -45,8 +46,10 @@ func newExporter(o *options, lg *logger) *exporter {
 }
 
 func (e *exporter) getJSON(ctx context.Context, path string, output any) error {
+	start := time.Now()
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, e.apiBase+path, nil)
 	if err != nil {
+		e.logger.Debug("api request", "endpoint", path, "error", err, "duration", time.Since(start))
 		return err
 	}
 	if e.apiToken != "" {
@@ -54,15 +57,25 @@ func (e *exporter) getJSON(ctx context.Context, path string, output any) error {
 	}
 	resp, err := e.client.Do(req)
 	if err != nil {
+		e.logger.Debug("api request", "endpoint", path, "error", err, "duration", time.Since(start))
 		return err
 	}
 	defer resp.Body.Close()
-	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("unexpected status %d for %s", resp.StatusCode, path)
-	}
 	body, err := io.ReadAll(io.LimitReader(resp.Body, 4<<20))
+	duration := time.Since(start)
 	if err != nil {
+		e.logger.Debug("api request", "endpoint", path, "error", err, "duration", duration)
 		return err
 	}
-	return json.Unmarshal(body, output)
+	if resp.StatusCode != http.StatusOK {
+		err := fmt.Errorf("unexpected status %d for %s", resp.StatusCode, path)
+		e.logger.Debug("api request", "endpoint", path, "status", resp.StatusCode, "error", err, "duration", duration)
+		return err
+	}
+	if err := json.Unmarshal(body, output); err != nil {
+		e.logger.Debug("api request", "endpoint", path, "error", err, "duration", duration)
+		return err
+	}
+	e.logger.Debug("api request", "endpoint", path, "status", resp.StatusCode, "bytes", len(body), "duration", duration)
+	return nil
 }

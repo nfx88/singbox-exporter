@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"net/http/httptest"
 	"strings"
 	"testing"
@@ -115,6 +116,64 @@ func TestLoggerJSONOutput(t *testing.T) {
 	}
 	if _, err := time.Parse(time.RFC3339Nano, entry["ts"].(string)); err != nil {
 		t.Errorf("unparsable ts %q: %v", entry["ts"], err)
+	}
+}
+
+func TestLoggerJSONTypedValues(t *testing.T) {
+	var buf bytes.Buffer
+	lg := newLogger(&buf, levelDebug, formatJSON)
+	lg.Debug("api request", "endpoint", "/proxies", "status", 200, "bytes", 89200, "duration", 41200*time.Microsecond)
+	lg.Info("poll complete", "up", true, "failed", 0, "error", nil)
+
+	dec := json.NewDecoder(&buf)
+	var first map[string]any
+	if err := dec.Decode(&first); err != nil {
+		t.Fatalf("invalid first JSON line %q: %v", buf.String(), err)
+	}
+	if first["status"] != float64(200) {
+		t.Errorf("status type = %T %v, want number", first["status"], first["status"])
+	}
+	if first["bytes"] != float64(89200) {
+		t.Errorf("bytes type = %T %v, want number", first["bytes"], first["bytes"])
+	}
+	if first["duration"] != 0.0412 {
+		t.Errorf("duration = %v, want 0.0412", first["duration"])
+	}
+
+	var second map[string]any
+	if err := dec.Decode(&second); err != nil {
+		t.Fatalf("invalid second JSON line %q: %v", buf.String(), err)
+	}
+	if second["up"] != true {
+		t.Errorf("up type = %T %v, want bool true", second["up"], second["up"])
+	}
+	if second["failed"] != float64(0) {
+		t.Errorf("failed type = %T %v, want number", second["failed"], second["failed"])
+	}
+	if second["error"] != nil {
+		t.Errorf("error = %v, want nil", second["error"])
+	}
+}
+
+func TestJSONFieldValue(t *testing.T) {
+	cases := []struct {
+		in   any
+		want any
+	}{
+		{int(7), int(7)},
+		{int64(7), int64(7)},
+		{float64(0.5), float64(0.5)},
+		{true, true},
+		{"x", "x"},
+		{time.Second, 1.0},
+		{1500 * time.Millisecond, 1.5},
+		{errors.New("boom"), "boom"},
+		{nil, nil},
+	}
+	for _, tc := range cases {
+		if got := jsonFieldValue(tc.in); got != tc.want {
+			t.Errorf("jsonFieldValue(%v) = %#v (%T), want %#v", tc.in, got, got, tc.want)
+		}
 	}
 }
 

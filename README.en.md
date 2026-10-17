@@ -186,16 +186,30 @@ Logs go to **stderr** in plain text by default:
 ```
 
 - `-log-level error` silences the startup/shutdown messages and keeps only errors.
-- `-log-format json` emits one structured object per line with `ts`, `level`, `msg`
-  and per-event fields (`endpoint`, `error`):
+- `-log-level debug` enables per-poll tracing: one `api request` debug event per HTTP
+  request (`endpoint`, `status`, `bytes`, `duration`) and a `collect endpoint` event
+  per result (`samples` or `error`), plus a `poll complete` cycle summary
+  (`up`, `failed`, `duration`).
+- `-log-format json` emits one structured object per line with `ts`, `level`, `msg` and
+  per-event fields. Numbers, booleans and durations keep their **native JSON type**
+  (not flattened into strings), so log shippers can filter and aggregate on them:
 
   ```json
-  {"endpoint":"proxies","error":"...","level":"error","msg":"collect failed","ts":"2026-10-15T22:50:09.123405+03:00"}
+  {"ts":"2026-10-17T22:50:09.123405+03:00","level":"info","msg":"sing-box connected","version":"sing-box 1.14.5"}
+  {"ts":"2026-10-17T22:50:09.124614+03:00","level":"debug","msg":"api request","endpoint":"/proxies","status":200,"bytes":89200,"duration":0.0412}
+  {"ts":"2026-10-17T22:50:09.124620+03:00","level":"debug","msg":"poll complete","up":true,"failed":0,"duration":0.0413}
+  {"ts":"2026-10-17T22:50:24.093105+03:00","level":"error","msg":"collect failed","endpoint":"proxies","error":"connect: connection refused"}
   ```
 
+  Durations are converted to seconds (float) in JSON output; the text format keeps them
+  human-readable (`41.2ms`).
+- On the first successful poll the sing-box version is logged (`sing-box connected`);
+  when the version changes a `sing-box version changed` warning is emitted with the old
+  and new versions — a sing-box restart/upgrade shows up in the logs without extra metrics.
 - Failed endpoint polls are logged with **exponential backoff**: the first failure
   of an endpoint appears immediately, subsequent ones at 1m/2m/4m/… (capped at 30m)
-  until the endpoint recovers. This prevents log flooding while sing-box is down;
+  until the endpoint recovers; the recovery itself is logged right away as
+  `endpoint recovered`. This prevents log flooding while sing-box is down;
   every failure still increments `singbox_scrape_errors_total` and flips
   `singbox_endpoint_up` to `0`.
 

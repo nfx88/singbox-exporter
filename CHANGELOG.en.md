@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+### Added
+
+- Logging: per-poll debug tracing (`api request` with `status`/`bytes`/`duration`,
+  `collect endpoint` with `samples`/`error`, `poll complete` summary), an `endpoint
+  recovered` event when a failed endpoint comes back, `sing-box connected` on the first
+  response and a `sing-box version changed` warning when the version flips (a
+  sing-box restart/upgrade shows up in the logs).
+- `-log-format json` now keeps the **native JSON types** of fields: numbers, booleans
+  and durations (seconds as float) are no longer flattened into strings — log shippers
+  can filter and aggregate on them; the text format interface is unchanged.
+
 ## [v0.1.0] - 2026-10-17
 
 ### Breaking

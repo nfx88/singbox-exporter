@@ -7,6 +7,16 @@
 
 ## Unreleased
 
+### Added
+
+- Логирование: debug-трассировка каждого опроса (`api request` с `status`/`bytes`/`duration`,
+  `collect endpoint` с `samples`/`error`, сводка `poll complete`), событие `endpoint recovered`
+  при восстановлении упавшего эндпоинта, `sing-box connected` при первом ответе и warning
+  `sing-box version changed` при смене версии (рестарт/апгрейд sing-box виден в логах).
+- `-log-format json` теперь сохраняет **родные JSON-типы** полей: числа, булевы и длительности
+  (в секундах float) не заворачиваются в строки — по ним можно фильтровать и агрегировать
+  в Loki/ELK; интерфейс текстового формата не изменился.
+
 ## [v0.1.0] - 2026-10-17
 
 ### Breaking

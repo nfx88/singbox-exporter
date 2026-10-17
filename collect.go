@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"sort"
 	"time"
 )
@@ -64,9 +65,10 @@ func (e *exporter) pollLoop(ctx context.Context) {
 }
 
 type collectResult struct {
-	name    string
-	samples []sample
-	err     error
+	name     string
+	samples  []sample
+	duration time.Duration
+	err      error
 }
 
 func (e *exporter) collect(ctx context.Context) {
@@ -79,6 +81,7 @@ func (e *exporter) collect(ctx context.Context) {
 	go e.collectProxies(ctx, results, nowSec)
 
 	apiOK := false
+	failed := 0
 	endpointUp := map[string]bool{
 		sectionVersion:     false,
 		sectionConnections: false,
@@ -87,21 +90,28 @@ func (e *exporter) collect(ctx context.Context) {
 	for range endpoints {
 		r := <-results
 		if r.err != nil {
+			failed++
 			if e.errLog.next(r.name, time.Now()) {
 				e.logger.Error("collect failed", "endpoint", r.name, "error", r.err)
 			}
+			e.logger.Debug("collect endpoint", "endpoint", r.name, "error", r.err, "duration", r.duration)
 			e.scrapeErrors.Add(1)
 			continue
+		}
+		if e.errLog.isFailing(r.name) {
+			e.logger.Info("endpoint recovered", "endpoint", r.name)
 		}
 		e.errLog.reset(r.name)
 		apiOK = true
 		endpointUp[r.name] = true
 		e.state.setSection(r.name, r.samples)
+		e.logger.Debug("collect endpoint", "endpoint", r.name, "samples", len(r.samples), "duration", r.duration)
 	}
 
 	if apiOK {
 		e.lastSuccessSec = nowSec
 	}
+	e.logger.Debug("poll complete", "up", apiOK, "failed", failed, "duration", time.Since(start))
 
 	var status []sample
 	if apiOK {
@@ -126,20 +136,32 @@ func (e *exporter) collect(ctx context.Context) {
 }
 
 func (e *exporter) collectVersion(ctx context.Context, results chan<- collectResult) {
+	start := time.Now()
 	var ver apiVersion
 	if err := e.getJSON(ctx, "/version", &ver); err != nil {
-		results <- collectResult{name: sectionVersion, err: err}
+		results <- collectResult{name: sectionVersion, duration: time.Since(start), err: err}
 		return
 	}
+	if ver.Version == "" {
+		results <- collectResult{name: sectionVersion, duration: time.Since(start), err: errors.New("empty version in /version response")}
+		return
+	}
+	if e.lastVersion == "" {
+		e.logger.Info("sing-box connected", "version", ver.Version)
+	} else if e.lastVersion != ver.Version {
+		e.logger.Warn("sing-box version changed", "old", e.lastVersion, "new", ver.Version)
+	}
+	e.lastVersion = ver.Version
 	var out []sample
 	addSample(&out, "singbox_version_info", "sing-box version information.", "gauge", map[string]string{"version": ver.Version}, 1)
-	results <- collectResult{name: sectionVersion, samples: out}
+	results <- collectResult{name: sectionVersion, samples: out, duration: time.Since(start)}
 }
 
 func (e *exporter) collectConnections(ctx context.Context, results chan<- collectResult) {
+	start := time.Now()
 	var conn apiConnections
 	if err := e.getJSON(ctx, "/connections", &conn); err != nil {
-		results <- collectResult{name: sectionConnections, err: err}
+		results <- collectResult{name: sectionConnections, duration: time.Since(start), err: err}
 		return
 	}
 
@@ -195,13 +217,14 @@ func (e *exporter) collectConnections(ctx context.Context, results chan<- collec
 		addSample(&out, "singbox_connections_by_rule", "Active connections grouped by the matched routing rule.", "gauge", map[string]string{"rule": r}, float64(byRule[r]))
 	}
 
-	results <- collectResult{name: sectionConnections, samples: out}
+	results <- collectResult{name: sectionConnections, samples: out, duration: time.Since(start)}
 }
 
 func (e *exporter) collectProxies(ctx context.Context, results chan<- collectResult, nowSec float64) {
+	start := time.Now()
 	var proxies apiProxies
 	if err := e.getJSON(ctx, "/proxies", &proxies); err != nil {
-		results <- collectResult{name: sectionProxies, err: err}
+		results <- collectResult{name: sectionProxies, duration: time.Since(start), err: err}
 		return
 	}
 
@@ -242,7 +265,7 @@ func (e *exporter) collectProxies(ctx context.Context, results chan<- collectRes
 		}
 	}
 
-	results <- collectResult{name: sectionProxies, samples: out}
+	results <- collectResult{name: sectionProxies, samples: out, duration: time.Since(start)}
 }
 
 func addDelayTimestamp(out *[]sample, value string, labels map[string]string, nowSec float64) {

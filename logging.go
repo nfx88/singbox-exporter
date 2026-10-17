@@ -135,12 +135,37 @@ func writeKeyValues(b *strings.Builder, kv []any) {
 	}
 }
 
+// writeKeyValuesMap fills the JSON entry map with typed field values: numbers,
+// booleans and durations keep their native JSON type instead of being flattened
+// into strings, so log shippers can filter and aggregate on them.
 func writeKeyValuesMap(m map[string]any, kv []any) {
 	for i := 0; i+1 < len(kv); i += 2 {
-		m[fmt.Sprint(kv[i])] = fmt.Sprint(kv[i+1])
+		m[fmt.Sprint(kv[i])] = jsonFieldValue(kv[i+1])
 	}
 	if len(kv)%2 == 1 {
 		m[fmt.Sprint(kv[len(kv)-1])] = "?"
+	}
+}
+
+// jsonFieldValue converts a log field value to its JSON-native representation.
+// Durations become second-precision floats (the same value the text format
+// renders as "41.2ms"); errors become their message; everything else preserves
+// its native JSON type.
+func jsonFieldValue(v any) any {
+	switch x := v.(type) {
+	case nil:
+		return nil
+	case time.Duration:
+		return x.Seconds()
+	case error:
+		return x.Error()
+	case bool,
+		int, int8, int16, int32, int64,
+		uint, uint8, uint16, uint32, uint64, uintptr,
+		float32, float64, string:
+		return x
+	default:
+		return fmt.Sprint(x)
 	}
 }
 
@@ -193,6 +218,14 @@ func (b *errorBackoff) next(key string, now time.Time) bool {
 	b.attempts[key]++
 	b.nextAt[key] = now.Add(delay)
 	return true
+}
+
+// isFailing reports whether key has any recorded failure history, i.e. it is
+// currently in an error state that a recovery log line would resolve.
+func (b *errorBackoff) isFailing(key string) bool {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	return b.attempts[key] > 0
 }
 
 // reset forgets the failure history of key, e.g. when the endpoint recovered.

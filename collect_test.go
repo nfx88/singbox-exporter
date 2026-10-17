@@ -19,6 +19,7 @@ type fakeAPI struct {
 	versionFail     atomic.Bool
 	connectionsFail atomic.Bool
 	proxiesFail     atomic.Bool
+	callVersion     int
 }
 
 func newFakeAPI() *fakeAPI { return &fakeAPI{} }
@@ -30,7 +31,12 @@ func (f *fakeAPI) handler() http.Handler {
 			http.Error(w, "boom", http.StatusInternalServerError)
 			return
 		}
-		_ = json.NewEncoder(w).Encode(apiVersion{Version: "sing-box 1.14.3", Premium: true, Meta: true})
+		f.callVersion++
+		version := "sing-box 1.14.3"
+		if f.callVersion > 1 {
+			version = "sing-box 1.14.6"
+		}
+		_ = json.NewEncoder(w).Encode(apiVersion{Version: version, Premium: true, Meta: true})
 	})
 	mux.HandleFunc("/connections", func(w http.ResponseWriter, _ *http.Request) {
 		if f.connectionsFail.Load() {
@@ -85,6 +91,16 @@ func newExporterWithFake(t *testing.T, f *fakeAPI) (*exporter, *httptest.Server)
 	t.Cleanup(srv.Close)
 	lg := newLogger(io.Discard, levelError, formatText)
 	e := newExporter(&options{apiBase: srv.URL, interval: time.Minute}, lg)
+	return e, srv
+}
+
+// newExporterWithFakeLog is like newExporterWithFake but collects log output
+// into buf for assertions.
+func newExporterWithFakeLog(t *testing.T, f *fakeAPI, buf *bytes.Buffer, level logLevel) (*exporter, *httptest.Server) {
+	t.Helper()
+	srv := httptest.NewServer(f.handler())
+	t.Cleanup(srv.Close)
+	e := newExporter(&options{apiBase: srv.URL, interval: time.Minute}, newLogger(buf, level, formatText))
 	return e, srv
 }
 
@@ -269,5 +285,96 @@ func TestHTTPMethods(t *testing.T) {
 		if rec.Code != http.StatusOK {
 			t.Errorf("GET %s = %d, want 200", path, rec.Code)
 		}
+	}
+}
+
+func TestLogRecoveryOnFirstSuccess(t *testing.T) {
+	f := newFakeAPI()
+	var buf bytes.Buffer
+	e, _ := newExporterWithFakeLog(t, f, &buf, levelInfo)
+
+	f.proxiesFail.Store(true)
+	e.collect(context.Background())
+	if !strings.Contains(buf.String(), `ERROR collect failed endpoint="proxies"`) {
+		t.Fatalf("missing first failure log:\n%s", buf.String())
+	}
+
+	f.proxiesFail.Store(false)
+	e.collect(context.Background())
+	text := buf.String()
+	if !strings.Contains(text, `INFO endpoint recovered endpoint="proxies"`) {
+		t.Errorf("missing recovery log after failed endpoint succeeds:\n%s", text)
+	}
+	if !strings.Contains(text, `INFO sing-box connected version="sing-box 1.14.3"`) {
+		t.Errorf("missing version log on first success:\n%s", text)
+	}
+}
+
+func TestLogRecoveryNotLoggedForSteadyState(t *testing.T) {
+	f := newFakeAPI()
+	var buf bytes.Buffer
+	e, _ := newExporterWithFakeLog(t, f, &buf, levelInfo)
+
+	e.collect(context.Background())
+	e.collect(context.Background())
+	if strings.Contains(buf.String(), "endpoint recovered") {
+		t.Errorf("steady-state polls must not log recovery:\n%s", buf.String())
+	}
+}
+
+func TestLogVersionChange(t *testing.T) {
+	f := newFakeAPI()
+	var buf bytes.Buffer
+	e, _ := newExporterWithFakeLog(t, f, &buf, levelInfo)
+
+	e.collect(context.Background())
+	if !strings.Contains(buf.String(), `INFO sing-box connected version="sing-box 1.14.3"`) {
+		t.Fatalf("missing connected log:\n%s", buf.String())
+	}
+	if strings.Contains(buf.String(), "version changed") {
+		t.Fatalf("first poll must not report a version change:\n%s", buf.String())
+	}
+
+	e.collect(context.Background())
+	text := buf.String()
+	if !strings.Contains(text, `WARN sing-box version changed old="sing-box 1.14.3" new="sing-box 1.14.6"`) {
+		t.Errorf("missing version change warn:\n%s", text)
+	}
+}
+
+func TestLogDebugTrace(t *testing.T) {
+	f := newFakeAPI()
+	var buf bytes.Buffer
+	e, _ := newExporterWithFakeLog(t, f, &buf, levelDebug)
+
+	e.collect(context.Background())
+	text := buf.String()
+	for _, want := range []string{
+		`DEBUG api request endpoint="/version" status="200"`,
+		`DEBUG api request endpoint="/connections" status="200"`,
+		`DEBUG api request endpoint="/proxies" status="200"`,
+		`DEBUG collect endpoint endpoint="version" samples="1"`,
+		`DEBUG collect endpoint endpoint="connections" samples="16"`,
+		`DEBUG poll complete up="true" failed="0" duration=`,
+	} {
+		if !strings.Contains(text, want) {
+			t.Errorf("missing debug trace %q:\n%s", want, text)
+		}
+	}
+}
+
+func TestLogDebugRecordsEndpointFailure(t *testing.T) {
+	f := newFakeAPI()
+	f.proxiesFail.Store(true)
+	var buf bytes.Buffer
+	e, _ := newExporterWithFakeLog(t, f, &buf, levelDebug)
+
+	e.collect(context.Background())
+	text := buf.String()
+	if !strings.Contains(text, `DEBUG collect endpoint endpoint="proxies" error=`) {
+		t.Errorf("failed endpoint must be traced at debug level:\n%s", text)
+	}
+	if !strings.Contains(text, `DEBUG poll complete up="true" failed="1" duration=`) {
+		t.Errorf("debug poll summary must show the failure:\n%s", text)
 	}
 }
